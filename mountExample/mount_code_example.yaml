@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  demo-code-deployment
+  labels:
+    app: demo-code-deployment
+spec:
+  selector:
+    matchLabels:
+      app: demo-code-deployment
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: demo-code-deployment
+    spec:
+      containers:
+        - name: demo-code-deployment
+          image: "kalyan31.jfrog.io/nise3-institute-docker/nise3-institute-docker:1.0.16"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          env:
+            - name: APP_ENV
+              value: "local"
+            - name: APP_DEBUG
+              value: "false"
+            - name: APP_URL
+              value: "mount-test.bus.softbd.xyz"
+            - name: DB_HOST
+              value: "mysql-service.db"
+            - name: DB_PORT
+              value: "{{ .Values.variables.DB_PORT }}"
+            - name: DB_DATABASE
+              value: "core_api"
+            - name: DB_USERNAME
+              value: "n3_core"
+            - name: DB_PASSWORD
+              value: "kvzV3Y"
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - "sh" 
+                  - "-c"
+                  - >
+                    mv /app/.env.example /app/.env;
+                    php artisan key:generate;
+                    sed -i "s/APP_ENV=.*$/APP_ENV=$APP_ENV/g" /app/.env;
+                    sed -i "s/APP_DEBUG=.*$/APP_DEBUG=$APP_DEBUG/g" /app/.env;
+                    sed -i "s/APP_URL=.*$/APP_URL=$APP_URL/g" /app/.env;
+                    sed -i "s/DB_HOST=.*$/DB_HOST=$DB_HOST/g" /app/.env;
+                    sed -i "s/DB_PORT=.*$/DB_PORT=$DB_PORT/g" /app/.env;
+                    sed -i "s/DB_DATABASE=.*$/DB_DATABASE=$DB_DATABASE/g" /app/.env;
+                    sed -i "s/DB_USERNAME=.*$/DB_USERNAME=$DB_USERNAME/g" /app/.env;
+                    sed -i "s/DB_PASSWORD=.*$/DB_PASSWORD=$DB_PASSWORD/g" /app/.env;
+                    chown -R www-data:www-data /app;
+          volumeMounts:
+          - name: core-persistent-storage
+            mountPath: /app/storage
+      volumes:
+      - name: core-persistent-storage
+        persistentVolumeClaim:
+          claimName: core-test-pv-claim
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-code-deployment
+spec:
+  selector:
+    app: demo-code-deployment
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 80
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: core-test-pv-claim
+  labels:
+    app: demo-code-deployment
+spec:
+  storageClassName: nfs-client
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: "demo-code-deployment-ingress"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: 'true'
+    nginx.ingress.kubernetes.io/ssl-passthrough: 'true'
+spec:
+  tls:
+    - hosts:
+        - "mount-test.bus.softbd.xyz"
+      secretName: "demo-code-deployment-secret"
+  rules:
+    - host: "mount-test.bus.softbd.xyz"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: demo-code-deployment
+                port:
+                  name: http
+
+

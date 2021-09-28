@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laravel
+  labels:
+    app: laravel
+spec:
+  selector:
+    matchLabels:
+      app: laravel
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: laravel
+    spec:
+      containers:
+        - name: laravel
+          image: kalyan312/laravel-kubernetes-demo:5
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8087
+          env:
+            - name: APP_KEY
+              value: base64:cUPmwHx4LXa4Z25HhzFiWCf7TlQmSqnt98pnuiHmzgY=
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: laravel
+spec:
+  selector:
+    app: laravel
+  ports:
+    - port: 8087
+      targetPort: 8087
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: "laravel-ingress"
+  annotations:
+    ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /laravel
+            backend:
+              serviceName: laravel
+              servicePort: 8087

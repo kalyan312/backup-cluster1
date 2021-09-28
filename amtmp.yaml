@@ -1,0 +1,25 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: wso2am-mysql-db-service
+  namespace: wso2
+  labels:
+    app: wso2am-mysql-db-service
+    app.kubernetes.io/managed-by: Helm
+    chart: mysql-1.6.9
+    heritage: Helm
+    release: wso2
+  annotations:
+    meta.helm.sh/release-name: wso2
+    meta.helm.sh/release-namespace: wso2
+    pv.kubernetes.io/bind-completed: 'yes'
+    pv.kubernetes.io/bound-by-controller: 'yes'
+    volume.beta.kubernetes.io/storage-provisioner: cluster.local/wso2-nfs-server-provisioner
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+  storageClassName: nfs
+  volumeMode: Filesystem
